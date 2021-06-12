@@ -52,7 +52,9 @@ int main(int argc, char const *argv[]) {
     int addrlen = sizeof(address);
     char *createUserSuccess = "Create user success";
     char *createUserFail = "Create user fail";
-    char *useDBSucces = "Using Database..";
+    char *createDBSuccess = "Create database exists";
+    char *createDBFail = "Database is exist";
+    char *useDBSuccess = "Using Database..";
     char *useDBFail = "Database not found";
     char *msg_kurang = "Pengurangan berhasil";
     char *salah = "Command or query not found";
@@ -103,18 +105,36 @@ int main(int argc, char const *argv[]) {
 		char *dapos = strtok(nthwork(buffer, 2), ";");
 		getcwd(cwd, sizeof(cwd)) //semisal di /home/daffainfo/fp/
 		sprintf(string, "%s/databases/%s", cwd, dapos);
-		if (string) { //Jika benar
+		if (chdir(string) != NULL) { //Jika benar
 			send(new_socket, useDBSuccess, strlen(useDBSuccess), 0);
 		} else {
 			send(new_socket, useDBFail, strlen(useDBFail), 0);
 		}
 	}
-        else if(strcmp(buffer, "cek") == 0) {
-            char str[100];
-            sprintf(str, "%d", num);
-            send(new_socket, str, strlen(str), 0);
-            printf("Message sent\n");
-        }
+	// char *buffer = "CREATE DATABASE daffainfo;";
+        else if (strstr(nthword(buffer, 1), "CREATE") == 0 && strstr(nthword(buffer, 2), "DATABASE") == 0) {
+		char string[100], cwd[PATH_MAX];
+		char *dapos = strtok(nthwork(buffer, 3), ";");
+		getcwd(cwd, sizeof(cwd)) //semisal di /home/daffainfo/fp/
+		sprintf(string, "%s/databases/%s", cwd, dapos);
+		if (mkdir(string) == 0) //jika berhasil {
+			send(new_socket, createDBSuccess, strlen(createDBSuccess), 0);
+		} else {
+			send(new_socket, createDBFail, strlen(createDBFail), 0);
+		}
+	}
+	// char *buffer = "DROP [DATABASE | TABLE | COLUMN] [nama_database | nama_tabel | [nama_kolom] FROM [nama_tabel]];";
+        else if (strstr(nthword(buffer, 1), "CREATE") == 0 && strstr(nthword(buffer, 2), "DATABASE") == 0) {
+		char string[100], cwd[PATH_MAX];
+		char *dapos = strtok(nthwork(buffer, 3), ";");
+		getcwd(cwd, sizeof(cwd)) //semisal di /home/daffainfo/fp/
+		sprintf(string, "%s/databases/%s", cwd, dapos);
+		if (mkdir(string) == 0) //jika berhasil {
+			send(new_socket, createDBSuccess, strlen(createDBSuccess), 0);
+		} else {
+			send(new_socket, createDBFail, strlen(createDBFail), 0);
+		}
+	}
         else {
             send(new_socket, salah, strlen(salah), 0);
             printf("Message sent\n");
@@ -122,75 +142,40 @@ int main(int argc, char const *argv[]) {
     }
     return 0;
 }
-
-
-	//Buat create db
-	// char *test = "CREATE DATABASE dapos;";
-	if (strcmp(nthword(test, 1), "CREATE") == 0 && strcmp(nthword(test, 2), "DATABASE") == 0)
-	{
-		char *dapos = strtok(nthwork(test, 3), ";");
-		chdir("/databases");
-		mkdir(dapos);
-
-		if (mkdir(dapos) == 0) //jika berhasil
-		{
-			//database dapos created
-		}
-		else
-		{
-			//database is exist
-		}
-	}
-	return 0;
-
 	//BUAT DROP ANEH"
-	if (strcmp(nthword(test, 1), "DROP") == 0)
-	{
-		if (strcmp(nthword(test, 2), "DATABASE") == 0)
-		{
+	if (strcmp(nthword(test, 1), "DROP") == 0) {
+		if (strcmp(nthword(test, 2), "DATABASE") == 0) {
 			char *dapos = strtok(nthwork(test, 3), ";");
 			chdir("/databases");
 			rmdir(dapos);
-			if (rmdir(dapos) == 0) //jika berhasil
-			{
+			if (rmdir(dapos) == 0) { //jika berhasil
 				//database dapos deleted
-			}
-			else
-			{
+			} else {
 				//database dpos not exist
 			}
 		}
-		else if (strcmp(nthword(test, 2), "TABLES") == 0)
-		{
+		else if (strcmp(nthword(test, 2), "TABLES") == 0) {
 			char *dapos = strtok(nthwork(test, 3), ";");
 			//PAKE FUNGSI USE DULU BIAR PINDAH DB
-			remove(tables1) if (remove(tables1) == 0) //jika berhasil
-			{
+			remove(tables1);
+			if (remove(tables1) == 0) //jika berhasil {
 				//table dapos deleted
-			}
-			else
-			{
+			} else {
 				//table dapos not exist
 			}
 		}
 		//MASIH SALAH!!
-		else if (strcmp(nthword(test, 2), "COLUMNS") == 0)
-		{
-			if (strcmp(nthword(test, 4), "FROM") == 0)
-			{
+		else if (strcmp(nthword(test, 2), "COLUMNS") == 0) {
+			if (strcmp(nthword(test, 4), "FROM") == 0) {
 				char *dapos = strtok(nthwork(test, 5), ";");
 
-				if (remove(tables1) == 0) //jika berhasil
-				{
+				if (remove(tables1) == 0) //jika berhasil{
 					//column dapos deleted
-				}
-				else
-				{
+				} else {
 					//column dapos not exist
 				}
 			}
-			else
-			{
+			else {
 				//FROM WHUTT TABLES??
 			}
 		}
