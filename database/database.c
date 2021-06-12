@@ -1,99 +1,128 @@
-#include <netinet/in.h>
-#include <pthread.h>
 #include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include <sys/socket.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <sys/wait.h>
+#include <stdlib.h>
+#include <netinet/in.h>
+#include <string.h>
 #include <unistd.h>
+
 #define PORT 8080
 
 //BUAT CHECK ROOT ATAU BUKAN
-int checkSudo()
-{
-	uid_t uid = getuid(), euid = geteuid();
-	if (uid != 0)
-	{
+int checkSudo() {
+	uid_t uid = getuid();
+	if (uid != 0) {
 		return 0; // Login as user
-	}
-	else
-	{
+	} else {
 		return 1; //Login as root
 	}
 }
-//Setelah login
 
 //FUNGSI BUAT NGAMBIL SPECifi WORD DI STRING
-void nthword(char *str, int num)
-{
+void nthword(char *str, int num) {
 	char ret[80];
 
 	int i = 0, strnum = 0;
 	char *prev;
 	prev = NULL;
 
-	while (*str != '\0')
-	{
-		if (*str != ' ')
-		{
+	while (*str != '\0') {
+		if (*str != ' ') {
 			if ((prev == NULL) || (*prev == ' '))
 				strnum++;
-			if (strnum == num)
-			{
+			if (strnum == num) {
 				ret[i] = *str;
 				i++;
 			}
 			str++;
 			prev = str - 1;
 		}
-		else if (*str == ' ')
-		{
+		else if (*str == ' ') {
 			str++;
 			prev = str - 1;
 		}
 	}
-
 	ret[i] = '\0';
 	printf("%s \n", ret);
 }
 
-//Buat create user ini
-	// char *test = "CREATE USER jack IDENTIFIED BY jack123;";
-	if (strcmp(nthword(test, 1), "CREATE") == 0 && strcmp(nthword(test, 1), "USER") == 0)
-	{
-		if (strcmp(nthword(test, 4), "IDENTIFIED") == 0 && strcmp(nthword(test, 5), "BY") == 0)
-		{
-			strtok(nthwork(test, 6), ";");
-			// echo create user sucess
-		}
-		else
-		{
-			// password yang bener
-		}
-	}
-	else
-	{
-		//user yang bener
-	}
+int main(int argc, char const *argv[]) {
+    int server_fd, new_socket, valread;
+    struct sockaddr_in address;
+    int opt = 1;
+    int addrlen = sizeof(address);
+    char *createUserSuccess = "Create user success";
+    char *createUserFail = "Create user fail";
+    char *useDBSucces = "Using Database..";
+    char *useDBFail = "Database not found";
+    char *msg_kurang = "Pengurangan berhasil";
+    char *salah = "Command or query not found";
+      
+    if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
+        perror("socket failed");
+        exit(EXIT_FAILURE);
+    }
+      
+    if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(opt))) {
+        perror("setsockopt");
+        exit(EXIT_FAILURE);
+    }
 
-	//Buat use db
-	// char *test = "USE DATABASE1;";
-	if (strcmp(nthword(test, 1), "USE") == 0 && nthword(test, 2) != 0)
-	{
-		char *dapos = strtok(nthwork(test, 2), ";");
-		getcwd() //semisal di /home/daffainfo/fp/
+    address.sin_family = AF_INET;
+    address.sin_port = htons( PORT );
+      
+    if (bind(server_fd, (struct sockaddr *)&address, sizeof(address))<0) {
+        perror("bind failed");
+        exit(EXIT_FAILURE);
+    }
 
-			if (chdir("/databases/${dapos}") == 0) //jika benar
-		{
-			//database dapos used
-		}
-		else
-		{
-			//database not found
+    if (listen(server_fd, 3) < 0) {
+        perror("listen");
+        exit(EXIT_FAILURE);
+    }
+
+    if ((new_socket = accept(server_fd, (struct sockaddr *)&address, (socklen_t*)&addrlen))<0) {
+        perror("accept");
+        exit(EXIT_FAILURE);
+    }
+
+    while(1) {
+        char buffer[1024] = {0};
+        valread = read(new_socket, buffer, 1024);    
+	// char *buffer = "CREATE USER daffainfo IDENTIFIED BY daffainfo;";
+        if (strstr(nthword(buffer, 1), "CREATE") == 0 && strstr(nthword(buffer, 1), "USER") == 0) {
+		if (strstr(nthword(buffer, 4), "IDENTIFIED") == 0 && strstr(nthword(buffer, 5), "BY") == 0) {
+			strtok(nthword(buffer, 6), ";");
+			send(new_socket, createUserSuccess, strlen(createUserSuccess), 0);
+		} else {
+			send(new_socket, createUserFail, strlen(createUserFail), 0);
 		}
 	}
+	// char *buffer = "USE DATABASE1;";
+        else if (strstr(nthword(buffer, 1), "USE") == 0 && nthword(buffer, 2) != 0) {
+		char string[100], cwd[PATH_MAX];
+		char *dapos = strtok(nthwork(buffer, 2), ";");
+		getcwd(cwd, sizeof(cwd)) //semisal di /home/daffainfo/fp/
+		sprintf(string, "%s/databases/%s", cwd, dapos);
+		if (string) { //Jika benar
+			send(new_socket, useDBSuccess, strlen(useDBSuccess), 0);
+		} else {
+			send(new_socket, useDBFail, strlen(useDBFail), 0);
+		}
+	}
+        else if(strcmp(buffer, "cek") == 0) {
+            char str[100];
+            sprintf(str, "%d", num);
+            send(new_socket, str, strlen(str), 0);
+            printf("Message sent\n");
+        }
+        else {
+            send(new_socket, salah, strlen(salah), 0);
+            printf("Message sent\n");
+        }
+    }
+    return 0;
+}
+
 
 	//Buat create db
 	// char *test = "CREATE DATABASE dapos;";
