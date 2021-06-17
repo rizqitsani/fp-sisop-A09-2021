@@ -10,14 +10,11 @@
 int checkSudo()
 {
 	uid_t uid = getuid();
+
 	if (uid != 0)
-	{
 		return 0; // Login as user
-	}
-	else
-	{
-		return 1; //Login as root
-	}
+
+	return 1; //Login as root
 }
 
 int main(int argc, char const *argv[])
@@ -26,6 +23,7 @@ int main(int argc, char const *argv[])
 	int sock = 0, valread;
 	struct sockaddr_in serv_addr;
 	char *hello = "Hello from client";
+
 	if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
 	{
 		printf("\n Socket creation error \n");
@@ -49,69 +47,74 @@ int main(int argc, char const *argv[])
 		return -1;
 	}
 
-	if (checkSudo() == 1)
+	// if (checkSudo() == 1)
+	// {
+	while (1)
 	{
-		while (1)
+		char buffer[1024] = {0};
+		char *str;
+		printf("Welcome to A09 Database, Please Input Query");
+		scanf("%s", str);
+
+		if (strcmp(str, "exit") == 0)
 		{
-			char buffer[1024] = {0};
-			char *str;
-			printf("Welcome to A09 Database, Please Input Query");
-			scanf("%s", str);
-			if (strcmp(str, "exit") == 0)
-			{
-				exit(0);
-			}
-			send(sock, str, strlen(str), 0);
-			printf("Query Executed\n");
-			valread = read(sock, buffer, 1024);
-			printf("%s\n", buffer);
+			exit(0);
 		}
+
+		send(sock, str, strlen(str), 0);
+		printf("Query Executed\n");
+		valread = read(sock, buffer, 1024);
+		printf("%s\n", buffer);
 	}
-	if (strcmp(argv[1], "-u") == 0 && argv[2] != 0 && strcmp(checkSudo(), 1) == 0)
-	{
-		if (strcmp(argv[3], "-p") == 0 && argv[4] != 0)
-		{
-			if (user & pass ada)
-			{
-				while (1)
-				{
-					char buffer[1024] = {0};
-					char *str;
-					printf("Welcome to A09 Database, Please Input Query");
-					scanf("%s", str);
-					if (strcmp(str, "exit") == 0)
-					{
-						exit(0);
-					}
-					else if (strstr(str, "CREATE USER") == 0)
-					{
-						str = '\0';
-						printf("Normal user can't create user!";
-					}
-					else if (strstr(str, "GRANT PERMISSION") == 0)
-					{
-						str = '\0';
-						printf("Normal user can't grant permission!";
-					}
-					send(sock, str, strlen(str), 0);
-					printf("Query Executed\n");
-					valread = read(sock, buffer, 1024);
-					printf("%s\n", buffer);
-				}
-			}
-			else
-			{
-				printf("User atau password salah");
-			}
-		}
-		else
-		{
-			printf("Butuh password");
-		}
-	}
-	else
-	{
-		printf("Selamat datang di database A09");
-	}
+	// }
+
+	// if (strcmp(argv[1], "-u") == 0 && argv[2] != 0 && strcmp(checkSudo(), 1) == 0)
+	// {
+	// 	if (strcmp(argv[3], "-p") == 0 && argv[4] != 0)
+	// 	{
+	// 		if (user & pass ada)
+	// 		{
+	// 			while (1)
+	// 			{
+	// 				char buffer[1024] = {0};
+	// 				char *str;
+	// 				printf("Welcome to A09 Database, Please Input Query");
+	// 				scanf("%s", str);
+
+	// 				if (strcmp(str, "exit") == 0)
+	// 				{
+	// 					exit(0);
+	// 				}
+	// 				else if (strstr(str, "CREATE USER") == 0)
+	// 				{
+	// 					str = '\0';
+	// 					printf("Normal user can't create user!");
+	// 				}
+	// 				else if (strstr(str, "GRANT PERMISSION") == 0)
+	// 				{
+	// 					str = '\0';
+	// 					printf("Normal user can't grant permission!");
+	// 				}
+
+	// 				send(sock, str, strlen(str), 0);
+	// 				printf("Query Executed\n");
+	// 				valread = read(sock, buffer, 1024);
+	// 				printf("%s\n", buffer);
+	// 			}
+	// 		}
+	// 		else
+	// 		{
+	// 			printf("User atau password salah");
+	// 		}
+	// 	}
+	// 	else
+	// 	{
+	// 		printf("Butuh password");
+	// 	}
+	// }
+	// else
+	// {
+	// 	printf("Selamat datang di database A09");
+	// }
 	return 0;
 }

@@ -6,6 +6,7 @@
 #include <unistd.h>
 
 #define PORT 8080
+#define PATH_MAX 1024
 
 //BUAT CHECK ROOT ATAU BUKAN
 int checkSudo()
@@ -22,7 +23,7 @@ int checkSudo()
 }
 
 //FUNGSI BUAT NGAMBIL SPECifi WORD DI STRING
-void nthword(char *str, int num)
+const char *nthword(char *str, int num)
 {
 	char ret[80];
 
@@ -51,7 +52,9 @@ void nthword(char *str, int num)
 		}
 	}
 	ret[i] = '\0';
-	printf("%s \n", ret);
+
+	return *ret;
+	// printf("%s \n", ret);
 }
 
 int main(int argc, char const *argv[])
@@ -88,6 +91,7 @@ int main(int argc, char const *argv[])
 	}
 
 	address.sin_family = AF_INET;
+	address.sin_addr.s_addr = INADDR_ANY;
 	address.sin_port = htons(PORT);
 
 	if (bind(server_fd, (struct sockaddr *)&address, sizeof(address)) < 0)
@@ -130,8 +134,9 @@ int main(int argc, char const *argv[])
 		{
 			char string[100], cwd[PATH_MAX];
 			char *dapos = strtok(nthword(buffer, 2), ";");
-			getcwd(cwd, sizeof(cwd)) //semisal di /home/daffainfo/fp/
-				sprintf(string, "%s/databases/%s", cwd, dapos);
+			getcwd(cwd, sizeof(cwd));
+			//semisal di /home/daffainfo/fp/
+			sprintf(string, "%s/databases/%s", cwd, dapos);
 			if (chdir(string) != NULL)
 			{ //Jika benar
 				send(new_socket, useDB, strlen(useDB), 0);
@@ -146,8 +151,8 @@ int main(int argc, char const *argv[])
 		{
 			char string[100], cwd[PATH_MAX];
 			char *dapos = strtok(nthword(buffer, 3), ";");
-			getcwd(cwd, sizeof(cwd)) //semisal di /home/daffainfo/fp/
-				sprintf(string, "%s/databases/%s", cwd, dapos);
+			getcwd(cwd, sizeof(cwd)); //semisal di /home/daffainfo/fp/
+			sprintf(string, "%s/databases/%s", cwd, dapos);
 			if (mkdir(string) == 0)
 			{
 				send(new_socket, createDB, strlen(createDB), 0);
@@ -165,8 +170,8 @@ int main(int argc, char const *argv[])
 			{
 				char *dapos = strtok(nthword(buffer, 3), ";");
 				char string[100], cwd[PATH_MAX];
-				getcwd(cwd, sizeof(cwd)) //semisal di /home/daffainfo/fp/
-					sprintf(string, "%s/databases/", cwd);
+				getcwd(cwd, sizeof(cwd)); //semisal di /home/daffainfo/fp/
+				sprintf(string, "%s/databases/", cwd);
 				chdir(string);
 				rmdir(dapos);
 				if (rmdir(dapos) == 0)
@@ -182,8 +187,8 @@ int main(int argc, char const *argv[])
 			{
 				char string[100], cwd[PATH_MAX], tables[100];
 				char *dapos = strtok(nthword(buffer, 2), ";");
-				getcwd(cwd, sizeof(cwd)) //semisal di /home/daffainfo/fp/
-					sprintf(string, "%s/databases/%s", cwd, dapos);
+				getcwd(cwd, sizeof(cwd)); //semisal di /home/daffainfo/fp/
+				sprintf(string, "%s/databases/%s", cwd, dapos);
 				strcat(tables, nthword(buffer, 3));
 				remove(tables);
 				if (remove(tables) == 0)
@@ -196,26 +201,26 @@ int main(int argc, char const *argv[])
 				}
 			}
 			//MASIH SALAH!!
-			else if (strcmp(nthword(buffer, 2), "COLUMNS") == 0)
-			{
-				if (strcmp(nthword(buffer, 4), "FROM") == 0)
-				{
-					char *dapos = strtok(nthword(buffer, 5), ";");
+			// else if (strcmp(nthword(buffer, 2), "COLUMNS") == 0)
+			// {
+			// 	if (strcmp(nthword(buffer, 4), "FROM") == 0)
+			// 	{
+			// 		char *dapos = strtok(nthword(buffer, 5), ";");
 
-					if (remove(tables1) == 0)
-					{
-						//column dapos deleted
-					}
-					else
-					{
-						//column dapos not exist
-					}
-				}
-				else
-				{
-					send(new_socket, "Input the table too!", strlen("Input the table too!"), 0);
-				}
-			}
+			// 		if (remove(tables1) == 0)
+			// 		{
+			// 			//column dapos deleted
+			// 		}
+			// 		else
+			// 		{
+			// 			//column dapos not exist
+			// 		}
+			// 	}
+			// 	else
+			// 	{
+			// 		send(new_socket, "Input the table too!", strlen("Input the table too!"), 0);
+			// 	}
+			// }
 		}
 		// char *buffer = DELETE FROM [nama_tabel];
 		else if (strcmp(nthword(buffer, 1), "DELETE") == 0 && strcmp(nthword(buffer, 2), "FROM") == 0)
@@ -223,8 +228,8 @@ int main(int argc, char const *argv[])
 			char string[100], cwd[PATH_MAX];
 			FILE *fp;
 			char *dapos = strtok(nthword(buffer, 3), ";");
-			getcwd(cwd, sizeof(cwd)) //semisal di /home/daffainfo/fp/
-				sprintf(string, "%s/databases/%s", cwd, dapos);
+			getcwd(cwd, sizeof(cwd)); //semisal di /home/daffainfo/fp/
+			sprintf(string, "%s/databases/%s", cwd, dapos);
 
 			fp = fopen("file.txt", "w+");
 			if (mkdir(string) == 0)
