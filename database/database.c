@@ -19,6 +19,7 @@ const int SIZE_BUFFER = sizeof(char) * 1000;
 void *routes(void *argv);
 void logging(char *string);
 bool login(int fd, char *username, char *password);
+bool isFileExists(char *filename);
 
 int main()
 {
@@ -341,7 +342,7 @@ bool isFileExists(char *filename)
 
 void logging(char *str)
 {
-	FILE *fp = fopen("SinSeiFS.log", "a+");
+	FILE *fp = fopen("/home/rizqitsani/SinSeiFS.log", "a+");
 
 	time_t rawtime;
 	struct tm *info;
@@ -351,7 +352,7 @@ void logging(char *str)
 
 	info = localtime(&rawtime);
 
-	strftime(buffer, sizeof(buffer), "%y-%m-%d %X", &info);
+	strftime(buffer, sizeof(buffer), "%Y-%m-%d %X", info);
 	fprintf(fp, "%s:root:%s\n", buffer, str);
 	fclose(fp);
 }
