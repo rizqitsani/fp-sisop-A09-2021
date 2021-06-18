@@ -130,32 +130,44 @@ void *routes(void *argv)
 		else if (strcmp(cmd, "USE") == 0)
 		{
 			cmd = strtok(NULL, " ");
-			char string[5000], cwd[PATH_MAX];
 
-			if (getcwd(cwd, sizeof(cwd)) != NULL)
+			if (strcmp(cmd, "DATABASE") == 0)
 			{
-				char temp[5000];
-				char *token2 = strtok(cmd, ";");
-				sprintf(string, "%s/databases/%s", cwd, cmd);
-				strcpy(temp, string);
-				strcpy(path, string);
-				memset(string, 0, 5000);
-				printf("%s\n", temp);
-				int dapos = chdir(temp);
-				printf("%d", dapos);
-				if (dapos == 0)
+				char cwd[PATH_MAX], dbDir[5000], *checkDir;
+				cmd = strtok(NULL, " ");
+
+				getcwd(cwd, sizeof(cwd));
+
+				checkDir = strstr(cwd, "databases");
+				if (checkDir != NULL)
 				{
-					write(fd, "Pindah DB Success\n", SIZE_BUFFER);
+					chdir("../../");
 				}
-				else
+
+				if (getcwd(cwd, sizeof(cwd)) != NULL)
 				{
-					write(fd, "Pindah DB Failed\n", SIZE_BUFFER);
+					char temp[5000];
+					char *dbName = strtok(cmd, ";");
+
+					printf("%s\n", dbName);
+					printf("cwd:%s\ncmd:%s\n", cwd, cmd);
+					sprintf(dbDir, "%s/databases/%s", cwd, cmd);
+					printf("dir: %s\n", dbDir);
+
+					int status = chdir(dbDir);
+					printf("status: %d\n", status);
+
+					if (status == 0)
+					{
+						write(fd, "Pindah DB Success\n", SIZE_BUFFER);
+					}
+					else
+					{
+						write(fd, "Pindah DB Failed\n", SIZE_BUFFER);
+					}
 				}
-				// memset(string, 0, 5000);
-				// printf("%s\n",string);
 			}
 		}
-
 		else if (strcmp(cmd, "DROP") == 0)
 		{
 			cmd = strtok(NULL, " ");
