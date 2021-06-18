@@ -92,14 +92,24 @@ void *routes(void *argv)
 		}
 		else if (strcmp(cmd, "CREATE") == 0)
 		{
-			char coba[100];
 			cmd = strtok(NULL, " ");
-			strcpy(coba, cmd);
 
 			if (strcmp(cmd, "DATABASE") == 0)
 			{
-				char string[5000], cwd[PATH_MAX];
+				char string[5000], cwd[PATH_MAX], tempDir[PATH_MAX], *checkDir;
 				char *token = strtok(NULL, " ");
+
+				getcwd(cwd, sizeof(cwd));
+				strcpy(tempDir, cwd);
+
+				printf("tempdir: %s\n", tempDir);
+
+				// Kembali ke parent kalau lagi use db
+				checkDir = strstr(cwd, "databases/");
+				if (checkDir != NULL)
+				{
+					chdir("../../");
+				}
 
 				if (getcwd(cwd, sizeof(cwd)) != NULL)
 				{
@@ -109,13 +119,15 @@ void *routes(void *argv)
 					if (!check)
 					{
 						write(fd, "Create DB Success\n", SIZE_BUFFER);
+
+						// Dikembalikan ke working directory semula
+						chdir(tempDir);
 					}
 					else
 					{
 						write(fd, "Create DB Failed\n", SIZE_BUFFER);
 					}
 				}
-				//create db ngapain
 			}
 			else if (strcmp(cmd, "TABLE") == 0)
 			{
@@ -129,42 +141,37 @@ void *routes(void *argv)
 		}
 		else if (strcmp(cmd, "USE") == 0)
 		{
+			char cwd[PATH_MAX], dbDir[5000], *checkDir;
 			cmd = strtok(NULL, " ");
 
-			if (strcmp(cmd, "DATABASE") == 0)
+			getcwd(cwd, sizeof(cwd));
+
+			checkDir = strstr(cwd, "databases");
+			if (checkDir != NULL)
 			{
-				char cwd[PATH_MAX], dbDir[5000], *checkDir;
-				cmd = strtok(NULL, " ");
+				chdir("../../");
+			}
 
-				getcwd(cwd, sizeof(cwd));
+			if (getcwd(cwd, sizeof(cwd)) != NULL)
+			{
+				char temp[5000];
+				char *dbName = strtok(cmd, ";");
 
-				checkDir = strstr(cwd, "databases");
-				if (checkDir != NULL)
+				printf("%s\n", dbName);
+				printf("cwd:%s\ncmd:%s\n", cwd, cmd);
+				sprintf(dbDir, "%s/databases/%s", cwd, cmd);
+				printf("dir: %s\n", dbDir);
+
+				int status = chdir(dbDir);
+				printf("status: %d\n", status);
+
+				if (status == 0)
 				{
-					chdir("../../");
+					write(fd, "Pindah DB Success\n", SIZE_BUFFER);
 				}
-
-				if (getcwd(cwd, sizeof(cwd)) != NULL)
+				else
 				{
-					char temp[5000];
-					char *dbName = strtok(cmd, ";");
-
-					printf("%s\n", dbName);
-					printf("cwd:%s\ncmd:%s\n", cwd, cmd);
-					sprintf(dbDir, "%s/databases/%s", cwd, cmd);
-					printf("dir: %s\n", dbDir);
-
-					int status = chdir(dbDir);
-					printf("status: %d\n", status);
-
-					if (status == 0)
-					{
-						write(fd, "Pindah DB Success\n", SIZE_BUFFER);
-					}
-					else
-					{
-						write(fd, "Pindah DB Failed\n", SIZE_BUFFER);
-					}
+					write(fd, "Pindah DB Failed\n", SIZE_BUFFER);
 				}
 			}
 		}
@@ -174,8 +181,20 @@ void *routes(void *argv)
 
 			if (strcmp(cmd, "DATABASE") == 0)
 			{
-				char string[5000], cwd[PATH_MAX];
+				char string[5000], cwd[PATH_MAX], tempDir[PATH_MAX], *checkDir;
 				char *token = strtok(NULL, " ");
+
+				getcwd(cwd, sizeof(cwd));
+				strcpy(tempDir, cwd);
+
+				printf("tempdir: %s\n", tempDir);
+
+				// Kembali ke parent kalau lagi use
+				checkDir = strstr(cwd, "databases/");
+				if (checkDir != NULL)
+				{
+					chdir("../../");
+				}
 
 				if (getcwd(cwd, sizeof(cwd)) != NULL)
 				{
@@ -185,6 +204,9 @@ void *routes(void *argv)
 					if (!check)
 					{
 						write(fd, "Drop database success\n", SIZE_BUFFER);
+
+						// Dikembalikan ke working directory semula
+						chdir(tempDir);
 					}
 					else
 					{
