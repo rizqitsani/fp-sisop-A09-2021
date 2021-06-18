@@ -157,7 +157,7 @@ void *routes(void *argv)
 					{
 						data = fopen(fileDir, "a");
 
-						fprintf(data, "%s", columnDetail);
+						fprintf(data, "%s\n", columnDetail);
 						fclose(data);
 						write(fd, "Tabel berhasil dibuat!\n", SIZE_BUFFER);
 					}
@@ -295,6 +295,42 @@ void *routes(void *argv)
 					else
 					{
 						write(fd, "Delete data failed\n", SIZE_BUFFER);
+					}
+				}
+			}
+		}
+		else if (strcmp(cmd, "INSERT") == 0)
+		{
+			cmd = strtok(NULL, " ");
+
+			if (strcmp(cmd, "INTO") == 0)
+			{
+				char fileDir[5000], cwd[PATH_MAX];
+				char *tableName = strtok(NULL, " ");
+
+				printf("table: %s\n", tableName);
+
+				if (getcwd(cwd, sizeof(cwd)) != NULL)
+				{
+					FILE *data;
+					char *value = strtok(NULL, "()");
+
+					printf("value: %s\n", value);
+					sprintf(fileDir, "%s/%s", cwd, tableName);
+
+					printf("dir: %s\n", fileDir);
+
+					if (isFileExists(fileDir))
+					{
+						data = fopen(fileDir, "a");
+
+						fprintf(data, "%s\n", value);
+						fclose(data);
+						write(fd, "Data berhasil dimasukkan!\n", SIZE_BUFFER);
+					}
+					else
+					{
+						write(fd, "Tabel tidak ditemukan!\n", SIZE_BUFFER);
 					}
 				}
 			}
