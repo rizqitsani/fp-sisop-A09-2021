@@ -9,11 +9,10 @@
 #include <sys/ioctl.h>
 #include <netinet/in.h>
 #define PORT 8080
-#define DATA_BUFFER 300
 
 int curr_fd = -1;
 int curr_id = -1;
-const int SIZE_BUFFER = sizeof(char) * DATA_BUFFER;
+const int SIZE_BUFFER = sizeof(char) * 300;
 
 // Socket setup
 int create_tcp_server_socket();
@@ -21,14 +20,13 @@ int create_tcp_server_socket();
 // Routes & controller
 void *routes(void *argv);
 bool login(int fd, char *username, char *password);
-void regist(int fd, char *username, char *password);
 
 int main()
 {
 	socklen_t addrlen;
 	struct sockaddr_in new_addr;
 	pthread_t tid;
-	char buf[DATA_BUFFER];
+	char buf[300];
 	int server_fd = create_tcp_server_socket();
 	int new_fd;
 
@@ -39,16 +37,16 @@ int main()
 		{
 			pthread_create(&tid, NULL, &routes, (void *)&new_fd);
 		}
-	} /* while(1) */
+	}
 	return 0;
 }
 
 void *routes(void *argv)
 {
 	int fd = *(int *)argv;
-	char query[DATA_BUFFER], buf[DATA_BUFFER];
+	char query[300], buf[300];
 
-	while (read(fd, query, DATA_BUFFER) != 0)
+	while (read(fd, query, 300) != 0)
 	{
 		puts(query);
 
@@ -68,11 +66,43 @@ void *routes(void *argv)
 
 			if (strcmp(cmd, "DATABASE") == 0)
 			{
+				cmd = strtok(NULL, " ");
 				//create db ngapain
+			}
+			else if (strcmp(cmd, "TABLE") == 0)
+			{
+				cmd = strtok(NULL, " ");
+				//create table ngapain
 			}
 			else
 			{
 				write(fd, "Invalid query on CREATE command\n", SIZE_BUFFER);
+			}
+		}
+		else if (strcmp(cmd, "USE") == 0)
+		{
+			cmd = strtok(NULL, " ");
+
+			//Use database ngapain
+		}
+
+		else if (strcmp(cmd, "DROP") == 0)
+		{
+			cmd = strtok(NULL, " ");
+
+			if (strcmp(cmd, "DATABASE") == 0)
+			{
+				cmd = strtok(NULL, " ");
+				//drop db ngapain
+			}
+			else if (strcmp(cmd, "TABLE") == 0)
+			{
+				cmd = strtok(NULL, " ");
+				//drop db ngapain
+			}
+			else
+			{
+				write(fd, "drop gagal\n", SIZE_BUFFER);
 			}
 		}
 		else
@@ -92,24 +122,19 @@ void *routes(void *argv)
 
 bool login(int fd, char *username, char *password)
 {
+	int id = -1;
 	if (curr_fd != -1)
 	{
-		write(fd, "Server is busy, wait for other user to logout.\n", SIZE_BUFFER);
+		write(fd, "Server is busy\n", SIZE_BUFFER);
 		return false;
 	}
 
-	int id = -1;
 	if (strcmp(username, "root") == 0)
 	{
 		id = 0;
 	}
 
-	if (id == -1)
-	{
-		write(fd, "Error::Invalid id or password\n", SIZE_BUFFER);
-		return false;
-	}
-	else
+	if (id != -1)
 	{
 		write(fd, "Login success\n", SIZE_BUFFER);
 		curr_fd = fd;
@@ -147,7 +172,7 @@ int create_tcp_server_socket()
 	ret_val = bind(fd, (struct sockaddr *)&address, sizeof(struct sockaddr_in));
 	if (ret_val != 0)
 	{
-		fprintf(stderr, "bind failed [%s]\n", strerror(errno));
+		fprintf(stderr, "bind failed");
 		close(fd);
 		exit(EXIT_FAILURE);
 	}
@@ -156,7 +181,7 @@ int create_tcp_server_socket()
 	ret_val = listen(fd, 5);
 	if (ret_val != 0)
 	{
-		fprintf(stderr, "listen failed [%s]\n", strerror(errno));
+		fprintf(stderr, "listen failed");
 		close(fd);
 		exit(EXIT_FAILURE);
 	}
