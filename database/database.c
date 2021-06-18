@@ -17,7 +17,6 @@ int curr_fd = -1, curr_id = -1;
 const int SIZE_BUFFER = sizeof(char) * 1000;
 
 void *routes(void *argv);
-void createDatabase(char *cmd);
 bool login(int fd, char *username, char *password);
 
 int main()
@@ -75,6 +74,7 @@ void *routes(void *argv)
 {
 	int fd = *(int *)argv;
 	char query[1000], buf[1000];
+	char path[1000];
 
 	while (read(fd, query, 1000) != 0)
 	{
@@ -138,6 +138,7 @@ void *routes(void *argv)
 				char *token2 = strtok(cmd, ";");
 				sprintf(string, "%s/databases/%s", cwd, cmd);
 				strcpy(temp, string);
+				strcpy(path, string);
 				memset(string, 0, 5000);
 				printf("%s\n", temp);
 				int dapos = chdir(temp);
@@ -161,17 +162,71 @@ void *routes(void *argv)
 
 			if (strcmp(cmd, "DATABASE") == 0)
 			{
-				cmd = strtok(NULL, " ");
-				//drop db ngapain
+				char string[5000], cwd[PATH_MAX];
+				char *token = strtok(NULL, " ");
+
+				if (getcwd(cwd, sizeof(cwd)) != NULL)
+				{
+					char *token2 = strtok(token, ";");
+					sprintf(string, "%s/databases/%s", cwd, token2);
+					int check = rmdir(string);
+					if (!check)
+					{
+						write(fd, "Drop database success\n", SIZE_BUFFER);
+					}
+					else
+					{
+						write(fd, "Drop database failed\n", SIZE_BUFFER);
+					}
+				}
+				//create db ngapain
 			}
 			else if (strcmp(cmd, "TABLE") == 0)
 			{
-				cmd = strtok(NULL, " ");
+				char string[5000], cwd[PATH_MAX];
+				char *token = strtok(NULL, " ");
+
+				if (getcwd(cwd, sizeof(cwd)) != NULL)
+				{
+					char *token2 = strtok(token, ";");
+					sprintf(string, "%s/databases/%s", cwd, token2);
+					int check = remove(string);
+					if (!check)
+					{
+						write(fd, "Remove table success\n", SIZE_BUFFER);
+					}
+					else
+					{
+						write(fd, "Remove table failed\n", SIZE_BUFFER);
+					}
+				}
 				//drop db ngapain
 			}
 			else
 			{
 				write(fd, "drop gagal\n", SIZE_BUFFER);
+			}
+		}
+		else if (strcmp(cmd, "DELETE") == 0)
+		{
+			cmd = strtok(NULL, " ");
+
+			if (strcmp(cmd, "FROM") == 0)
+			{
+				char string[5000], cwd[PATH_MAX];
+				char *token = strtok(NULL, " ");
+
+				if (getcwd(cwd, sizeof(cwd)) != NULL)
+				{
+					FILE *data;
+					char *token2 = strtok(token, ";");
+					sprintf(string, "%s/databases/%s", cwd, token2);
+					data = fopen(string, "w");
+					if (data)
+					{
+						fclose(data);
+					}
+				}
 			}
 		}
 		else
@@ -183,7 +238,6 @@ void *routes(void *argv)
 	{
 		curr_fd = curr_id = -1;
 	}
-	printf("Close connection with fd: %d\n", fd);
 	close(fd);
 }
 
@@ -208,8 +262,4 @@ bool login(int fd, char *username, char *password)
 		curr_id = id;
 	}
 	return true;
-}
-
-void createDatabase(char *cmd)
-{
 }
