@@ -1,120 +1,144 @@
-#include <arpa/inet.h>
-#include <netinet/in.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
-#include <sys/socket.h>
+#include <stdlib.h>
 #include <unistd.h>
+#include <errno.h>
+#include <netinet/in.h>
+#include <netdb.h>
+#include <pthread.h>
+#include <stdlib.h>
+#include <stdbool.h>
 #define PORT 8080
+#define DATA_BUFFER 300
 
-int checkSudo()
+const int SIZE_BUFFER = sizeof(char) * DATA_BUFFER;
+char username[DATA_BUFFER] = {0};
+bool wait = false;
+
+// SETUP
+int create_tcp_client_socket();
+void *handleInput(void *client_fd);
+void *handleOutput(void *client_fd);
+void getServerOutput(int fd, char *input);
+
+// Controller
+bool login(int, int, char *[]);
+
+int main(int argc, char *argv[])
 {
-	uid_t uid = getuid();
+	pthread_t tid[2];
+	int client_fd = create_tcp_client_socket();
 
-	if (uid != 0)
-		return 0; // Login as user
+	if (!login(client_fd, argc, argv))
+	{
+		return -1;
+	}
 
-	return 1; //Login as root
+	pthread_create(&(tid[0]), NULL, &handleOutput, (void *)&client_fd);
+	pthread_create(&(tid[1]), NULL, &handleInput, (void *)&client_fd);
+
+	pthread_join(tid[0], NULL);
+	pthread_join(tid[1], NULL);
+
+	close(client_fd);
+	return 0;
 }
 
-int main(int argc, char const *argv[])
+/**    CONTROLLER    **/
+bool login(int fd, int argc, char *argv[])
 {
-	struct sockaddr_in address;
-	int sock = 0, valread;
-	struct sockaddr_in serv_addr;
-	char *hello = "Hello from client";
-
-	if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
-	{
-		printf("\n Socket creation error \n");
-		return -1;
+	char buf[DATA_BUFFER];
+	if (geteuid() == 0)
+	{ // root
+		write(fd, "LOGIN root", SIZE_BUFFER);
+		puts("LOGIN root");
+		strcpy(username, "root");
 	}
+	read(fd, buf, SIZE_BUFFER);
+	puts(buf);
+	return strcmp(buf, "Login success\n") == 0;
+}
 
-	memset(&serv_addr, '0', sizeof(serv_addr));
+/**    SETUP    **/
+void *handleInput(void *client_fd)
+{
+	int fd = *(int *)client_fd;
+	char message[DATA_BUFFER] = {0};
 
-	serv_addr.sin_family = AF_INET;
-	serv_addr.sin_port = htons(PORT);
-
-	if (inet_pton(AF_INET, "127.0.0.1", &serv_addr.sin_addr) <= 0)
-	{
-		printf("\nInvalid address/ Address not supported \n");
-		return -1;
-	}
-
-	if (connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0)
-	{
-		printf("\nConnection Failed \n");
-		return -1;
-	}
-
-	// if (checkSudo() == 1)
-	// {
 	while (1)
 	{
-		char buffer[1024] = {0};
-		char *str;
-		printf("Welcome to A09 Database, Please Input Query");
-		scanf("%s", str);
-
-		if (strcmp(str, "exit") == 0)
+		if (wait)
+			continue;
+		printf("#A09 ");
+		fgets(message, DATA_BUFFER, stdin);
+		char *tmp = strtok(message, "\n");
+		if (tmp != NULL)
 		{
-			exit(0);
+			strcpy(message, tmp);
 		}
-
-		send(sock, str, strlen(str), 0);
-		printf("Query Executed\n");
-		valread = read(sock, buffer, 1024);
-		printf("%s\n", buffer);
+		if (strcmp(message, "exit") == 0)
+		{
+			exit(EXIT_SUCCESS);
+		}
+		send(fd, message, SIZE_BUFFER, 0);
+		wait = true;
 	}
-	// }
+}
 
-	// if (strcmp(argv[1], "-u") == 0 && argv[2] != 0 && strcmp(checkSudo(), 1) == 0)
-	// {
-	// 	if (strcmp(argv[3], "-p") == 0 && argv[4] != 0)
-	// 	{
-	// 		if (user & pass ada)
-	// 		{
-	// 			while (1)
-	// 			{
-	// 				char buffer[1024] = {0};
-	// 				char *str;
-	// 				printf("Welcome to A09 Database, Please Input Query");
-	// 				scanf("%s", str);
+void *handleOutput(void *client_fd)
+{
+	int fd = *(int *)client_fd;
+	char message[DATA_BUFFER] = {0};
 
-	// 				if (strcmp(str, "exit") == 0)
-	// 				{
-	// 					exit(0);
-	// 				}
-	// 				else if (strstr(str, "CREATE USER") == 0)
-	// 				{
-	// 					str = '\0';
-	// 					printf("Normal user can't create user!");
-	// 				}
-	// 				else if (strstr(str, "GRANT PERMISSION") == 0)
-	// 				{
-	// 					str = '\0';
-	// 					printf("Normal user can't grant permission!");
-	// 				}
+	while (1)
+	{
+		memset(message, 0, SIZE_BUFFER);
+		getServerOutput(fd, message);
+		printf("%s", message);
+		fflush(stdout);
+		wait = false;
+	}
+}
 
-	// 				send(sock, str, strlen(str), 0);
-	// 				printf("Query Executed\n");
-	// 				valread = read(sock, buffer, 1024);
-	// 				printf("%s\n", buffer);
-	// 			}
-	// 		}
-	// 		else
-	// 		{
-	// 			printf("User atau password salah");
-	// 		}
-	// 	}
-	// 	else
-	// 	{
-	// 		printf("Butuh password");
-	// 	}
-	// }
-	// else
-	// {
-	// 	printf("Selamat datang di database A09");
-	// }
-	return 0;
+void getServerOutput(int fd, char *input)
+{
+	if (recv(fd, input, DATA_BUFFER, 0) == 0)
+	{
+		printf("Disconnected from server\n");
+		exit(EXIT_SUCCESS);
+	}
+}
+
+int create_tcp_client_socket()
+{
+	struct sockaddr_in address;
+	int server_fd, ret_val;
+	int opt = 1;
+	struct hostent *local_host; /* need netdb.h for this */
+
+	/* Step1: create a TCP socket */
+	if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0)
+	{
+		perror("socket failed");
+		exit(EXIT_FAILURE);
+	}
+	if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(opt)))
+	{
+		perror("setsockopt");
+		exit(EXIT_FAILURE);
+	}
+
+	/* Let us initialize the server address structure */
+	address.sin_family = AF_INET;
+	address.sin_port = htons(PORT);
+	local_host = gethostbyname("127.0.0.1");
+	address.sin_addr = *((struct in_addr *)local_host->h_addr);
+
+	/* Step2: connect to the TCP server socket */
+	ret_val = connect(fd, (struct sockaddr *)&address, sizeof(struct sockaddr_in));
+	if (ret_val == -1)
+	{
+		exit(EXIT_FAILURE);
+	}
+	return fd;
 }
