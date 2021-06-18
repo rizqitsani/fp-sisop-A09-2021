@@ -9,25 +9,19 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #define PORT 8080
-#define DATA_BUFFER 300
 
-const int SIZE_BUFFER = sizeof(char) * DATA_BUFFER;
-char username[DATA_BUFFER] = {0};
+const int SIZE_BUFFER = sizeof(char) * 1000;
 bool wait = false;
 
 void *handleInput(void *client_fd);
 void *handleOutput(void *client_fd);
-void getServerOutput(int fd, char *input);
-
-bool login(int, int, char *[]);
 
 int main(int argc, char *argv[])
 {
 	pthread_t tid[2];
 
 	struct sockaddr_in address;
-	int client_fd, ret_val;
-	int opt = 1;
+	int client_fd, opt = 1;
 	struct hostent *local_host;
 
 	if ((client_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0)
@@ -51,11 +45,6 @@ int main(int argc, char *argv[])
 		exit(EXIT_FAILURE);
 	}
 
-	if (!login(client_fd, argc, argv))
-	{
-		return -1;
-	}
-
 	pthread_create(&(tid[0]), NULL, &handleOutput, (void *)&client_fd);
 	pthread_create(&(tid[1]), NULL, &handleInput, (void *)&client_fd);
 
@@ -66,50 +55,29 @@ int main(int argc, char *argv[])
 	return 0;
 }
 
-/**    CONTROLLER    **/
-bool login(int fd, int argc, char *argv[])
-{
-	char buf[DATA_BUFFER];
-
-	if (geteuid() == 0)
-	{
-		write(fd, "LOGIN root", SIZE_BUFFER);
-		puts("LOGIN root");
-		strcpy(username, "root");
-	}
-
-	read(fd, buf, SIZE_BUFFER);
-	puts(buf);
-	return strcmp(buf, "Login success\n") == 0;
-}
-
 void *handleInput(void *client_fd)
 {
 	int fd = *(int *)client_fd;
-	char message[DATA_BUFFER] = {0};
+	char query[1000] = {0};
+	printf("Welcome to database A09\n");
 
 	while (1)
 	{
-		if (wait)
+		printf("A09> ");
+		fgets(query, 1000, stdin);
+		char *temp = strtok(query, "\n");
+
+		if (temp != NULL)
 		{
-			continue;
+			strcpy(query, temp);
 		}
 
-		printf("#A09 ");
-		fgets(message, DATA_BUFFER, stdin);
-		char *tmp = strtok(message, "\n");
-
-		if (tmp != NULL)
-		{
-			strcpy(message, tmp);
-		}
-
-		if (strcmp(message, "exit") == 0)
+		if (strcmp(query, "exit") == 0)
 		{
 			exit(EXIT_SUCCESS);
 		}
 
-		send(fd, message, SIZE_BUFFER, 0);
+		send(fd, query, SIZE_BUFFER, 0);
 		wait = true;
 	}
 }
@@ -117,23 +85,17 @@ void *handleInput(void *client_fd)
 void *handleOutput(void *client_fd)
 {
 	int fd = *(int *)client_fd;
-	char message[DATA_BUFFER] = {0};
+	char query[1000] = {0};
 
 	while (1)
 	{
-		memset(message, 0, SIZE_BUFFER);
-		getServerOutput(fd, message);
-		printf("%s", message);
+		memset(query, 0, SIZE_BUFFER);
+		if (recv(fd, query, 1000, 0) == 0)
+		{
+			exit(EXIT_SUCCESS);
+		}
+		printf("%s", query);
 		fflush(stdout);
 		wait = false;
-	}
-}
-
-void getServerOutput(int fd, char *input)
-{
-	if (recv(fd, input, DATA_BUFFER, 0) == 0)
-	{
-		printf("Disconnected from server\n");
-		exit(EXIT_SUCCESS);
 	}
 }
