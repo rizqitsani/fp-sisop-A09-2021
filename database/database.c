@@ -7,13 +7,17 @@
 #include <pthread.h>
 #include <sys/stat.h>
 #include <sys/ioctl.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <netinet/in.h>
+#include <limits.h>
 #define PORT 8080
 
 int curr_fd = -1, curr_id = -1;
 const int SIZE_BUFFER = sizeof(char) * 1000;
 
 void *routes(void *argv);
+void createDatabase(char *cmd);
 bool login(int fd, char *username, char *password);
 
 int main()
@@ -39,7 +43,6 @@ int main()
 	address.sin_family = AF_INET;
 	address.sin_port = htons(PORT);
 	address.sin_addr.s_addr = INADDR_ANY;
-
 
 	ret_val = bind(fd, (struct sockaddr *)&address, sizeof(struct sockaddr_in));
 	if (ret_val != 0)
@@ -89,11 +92,29 @@ void *routes(void *argv)
 		}
 		else if (strcmp(cmd, "CREATE") == 0)
 		{
+			char coba[100];
 			cmd = strtok(NULL, " ");
+			strcpy(coba, cmd);
 
 			if (strcmp(cmd, "DATABASE") == 0)
 			{
-				cmd = strtok(NULL, " ");
+				char string[5000], cwd[PATH_MAX];
+				char *token = strtok(NULL, " ");
+
+				if (getcwd(cwd, sizeof(cwd)) != NULL)
+				{
+					char *token2 = strtok(token, ";");
+					sprintf(string, "%s/databases/%s", cwd, token2);
+					int check = mkdir(string, 0777);
+					if (!check)
+					{
+						write(fd, "Create DB Success\n", SIZE_BUFFER);
+					}
+					else
+					{
+						write(fd, "Create DB Failed\n", SIZE_BUFFER);
+					}
+				}
 				//create db ngapain
 			}
 			else if (strcmp(cmd, "TABLE") == 0)
@@ -109,8 +130,29 @@ void *routes(void *argv)
 		else if (strcmp(cmd, "USE") == 0)
 		{
 			cmd = strtok(NULL, " ");
+			char string[5000], cwd[PATH_MAX];
 
-			//Use database ngapain
+			if (getcwd(cwd, sizeof(cwd)) != NULL)
+			{
+				char temp[5000];
+				char *token2 = strtok(cmd, ";");
+				sprintf(string, "%s/databases/%s", cwd, cmd);
+				strcpy(temp, string);
+				memset(string, 0, 5000);
+				printf("%s\n", temp);
+				int dapos = chdir(temp);
+				printf("%d", dapos);
+				if (dapos == 0)
+				{
+					write(fd, "Pindah DB Success\n", SIZE_BUFFER);
+				}
+				else
+				{
+					write(fd, "Pindah DB Failed\n", SIZE_BUFFER);
+				}
+				// memset(string, 0, 5000);
+				// printf("%s\n",string);
+			}
 		}
 
 		else if (strcmp(cmd, "DROP") == 0)
@@ -166,4 +208,8 @@ bool login(int fd, char *username, char *password)
 		curr_id = id;
 	}
 	return true;
+}
+
+void createDatabase(char *cmd)
+{
 }
