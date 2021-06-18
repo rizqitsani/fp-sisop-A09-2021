@@ -223,7 +223,8 @@ void *routes(void *argv)
 				if (getcwd(cwd, sizeof(cwd)) != NULL)
 				{
 					char *token2 = strtok(token, ";");
-					sprintf(string, "%s/databases/%s", cwd, token2);
+					sprintf(string, "%s/%s", cwd, token2);
+					printf("%s\n", string);
 					int check = remove(string);
 					if (!check)
 					{
@@ -254,11 +255,17 @@ void *routes(void *argv)
 				{
 					FILE *data;
 					char *token2 = strtok(token, ";");
-					sprintf(string, "%s/databases/%s", cwd, token2);
+					sprintf(string, "%s/%s", cwd, token2);
+					printf("%s\n", string);
 					data = fopen(string, "w");
 					if (data)
 					{
+						write(fd, "Delete data success\n", SIZE_BUFFER);
 						fclose(data);
+					}
+					else
+					{
+						write(fd, "Delete data failed\n", SIZE_BUFFER);
 					}
 				}
 			}
