@@ -18,6 +18,7 @@ const int SIZE_BUFFER = sizeof(char) * 1000;
 
 void *routes(void *argv);
 bool login(int fd, char *username, char *password);
+bool isFileExists(char *filename);
 
 int main()
 {
@@ -131,8 +132,34 @@ void *routes(void *argv)
 			}
 			else if (strcmp(cmd, "TABLE") == 0)
 			{
-				cmd = strtok(NULL, " ");
-				//create table ngapain
+				char fileDir[5000], cwd[PATH_MAX];
+				char *tableName = strtok(NULL, " ");
+
+				printf("table: %s\n", tableName);
+
+				if (getcwd(cwd, sizeof(cwd)) != NULL)
+				{
+					FILE *data;
+					char *columnDetail = strtok(NULL, "()");
+
+					printf("column: %s\n", columnDetail);
+					sprintf(fileDir, "%s/%s", cwd, tableName);
+
+					printf("dir: %s\n", fileDir);
+
+					if (isFileExists(fileDir))
+					{
+						write(fd, "Tabel sudah dibuat sebelumnya!\n", SIZE_BUFFER);
+					}
+					else
+					{
+						data = fopen(fileDir, "a");
+
+						fprintf(data, "%s", columnDetail);
+						fclose(data);
+						write(fd, "Tabel berhasil dibuat!\n", SIZE_BUFFER);
+					}
+				}
 			}
 			else
 			{
@@ -303,4 +330,10 @@ bool login(int fd, char *username, char *password)
 		curr_id = id;
 	}
 	return true;
+}
+
+bool isFileExists(char *filename)
+{
+	struct stat buffer;
+	return (stat(filename, &buffer) == 0);
 }
