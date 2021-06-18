@@ -23,54 +23,84 @@ bool login(int fd, char *username, char *password);
 bool isFileExists(char *filename);
 void deleteAllTable(char *basePath);
 
+char workingDir[PATH_MAX];
+
 int main()
 {
-	struct sockaddr_in address, new_addr;
-	int fd, new_fd, ret_val, opt = 1;
-	socklen_t addrlen;
-	pthread_t tid;
-	char buf[1000];
+	pid_t pid, sid;
+	pid = fork();
 
-	fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-	if (fd == -1)
-	{
-		fprintf(stderr, "socket failed [%s]\n", strerror(errno));
+	if (pid < 0)
 		exit(EXIT_FAILURE);
-	}
-	if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(opt)))
-	{
-		perror("setsockopt");
-		exit(EXIT_FAILURE);
-	}
 
-	address.sin_family = AF_INET;
-	address.sin_port = htons(PORT);
-	address.sin_addr.s_addr = INADDR_ANY;
+	if (pid > 0)
+		exit(EXIT_SUCCESS);
 
-	ret_val = bind(fd, (struct sockaddr *)&address, sizeof(struct sockaddr_in));
-	if (ret_val != 0)
-	{
-		fprintf(stderr, "bind failed");
-		close(fd);
-		exit(EXIT_FAILURE);
-	}
+	umask(0);
 
-	ret_val = listen(fd, 5);
-	if (ret_val != 0)
-	{
-		fprintf(stderr, "listen failed");
-		close(fd);
+	sid = setsid();
+	if (sid < 0)
 		exit(EXIT_FAILURE);
-	}
+
+	getcwd(workingDir, sizeof(workingDir));
+
+	if ((chdir(workingDir)) < 0)
+		exit(EXIT_FAILURE);
+
+	close(STDIN_FILENO);
+	close(STDOUT_FILENO);
+	close(STDERR_FILENO);
 
 	while (1)
 	{
-		new_fd = accept(fd, (struct sockaddr *)&new_addr, &addrlen);
-		if (new_fd >= 0)
+		struct sockaddr_in address, new_addr;
+		int fd, new_fd, ret_val, opt = 1;
+		socklen_t addrlen;
+		pthread_t tid;
+		char buf[1000];
+
+		fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+		if (fd == -1)
 		{
-			pthread_create(&tid, NULL, &routes, (void *)&new_fd);
+			fprintf(stderr, "socket failed [%s]\n", strerror(errno));
+			exit(EXIT_FAILURE);
+		}
+		if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(opt)))
+		{
+			perror("setsockopt");
+			exit(EXIT_FAILURE);
+		}
+
+		address.sin_family = AF_INET;
+		address.sin_port = htons(PORT);
+		address.sin_addr.s_addr = INADDR_ANY;
+
+		ret_val = bind(fd, (struct sockaddr *)&address, sizeof(struct sockaddr_in));
+		if (ret_val != 0)
+		{
+			fprintf(stderr, "bind failed");
+			close(fd);
+			exit(EXIT_FAILURE);
+		}
+
+		ret_val = listen(fd, 5);
+		if (ret_val != 0)
+		{
+			fprintf(stderr, "listen failed");
+			close(fd);
+			exit(EXIT_FAILURE);
+		}
+
+		while (1)
+		{
+			new_fd = accept(fd, (struct sockaddr *)&new_addr, &addrlen);
+			if (new_fd >= 0)
+			{
+				pthread_create(&tid, NULL, &routes, (void *)&new_fd);
+			}
 		}
 	}
+
 	return 0;
 }
 
