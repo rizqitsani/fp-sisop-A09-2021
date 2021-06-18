@@ -1,251 +1,164 @@
 #include <stdio.h>
-#include <sys/socket.h>
+#include <stdbool.h>
 #include <stdlib.h>
-#include <netinet/in.h>
-#include <string.h>
 #include <unistd.h>
-
+#include <string.h>
+#include <errno.h>
+#include <pthread.h>
+#include <sys/stat.h>
+#include <sys/ioctl.h>
+#include <netinet/in.h>
 #define PORT 8080
-#define PATH_MAX 1024
+#define DATA_BUFFER 300
 
-//BUAT CHECK ROOT ATAU BUKAN
-int checkSudo()
+int curr_fd = -1;
+int curr_id = -1;
+const int SIZE_BUFFER = sizeof(char) * DATA_BUFFER;
+
+// Socket setup
+int create_tcp_server_socket();
+
+// Routes & controller
+void *routes(void *argv);
+bool login(int fd, char *username, char *password);
+void regist(int fd, char *username, char *password);
+
+int main()
 {
-	uid_t uid = getuid();
-	if (uid != 0)
+	socklen_t addrlen;
+	struct sockaddr_in new_addr;
+	pthread_t tid;
+	char buf[DATA_BUFFER];
+	int server_fd = create_tcp_server_socket();
+	int new_fd;
+
+	while (1)
 	{
-		return 0; // Login as user
+		new_fd = accept(server_fd, (struct sockaddr *)&new_addr, &addrlen);
+		if (new_fd >= 0)
+		{
+			pthread_create(&tid, NULL, &routes, (void *)&new_fd);
+		}
+	} /* while(1) */
+	return 0;
+}
+
+void *routes(void *argv)
+{
+	int fd = *(int *)argv;
+	char query[DATA_BUFFER], buf[DATA_BUFFER];
+
+	while (read(fd, query, DATA_BUFFER) != 0)
+	{
+		puts(query);
+
+		strcpy(buf, query);
+		char *cmd = strtok(buf, " ");
+
+		if (strcmp(cmd, "LOGIN") == 0)
+		{
+			char *username = strtok(NULL, " ");
+			char *password = "root";
+			if (!login(fd, username, password))
+				break;
+		}
+		else if (strcmp(cmd, "CREATE") == 0)
+		{
+			cmd = strtok(NULL, " ");
+
+			if (strcmp(cmd, "DATABASE") == 0)
+			{
+				//create db ngapain
+			}
+			else
+			{
+				write(fd, "Invalid query on CREATE command\n", SIZE_BUFFER);
+			}
+		}
+		else
+		{
+			write(fd, "Invalid query\n", SIZE_BUFFER);
+		}
+	}
+	if (fd == curr_fd)
+	{
+		curr_fd = curr_id = -1;
+	}
+	printf("Close connection with fd: %d\n", fd);
+	close(fd);
+}
+
+/****   Controllers   *****/
+
+bool login(int fd, char *username, char *password)
+{
+	if (curr_fd != -1)
+	{
+		write(fd, "Server is busy, wait for other user to logout.\n", SIZE_BUFFER);
+		return false;
+	}
+
+	int id = -1;
+	if (strcmp(username, "root") == 0)
+	{
+		id = 0;
+	}
+
+	if (id == -1)
+	{
+		write(fd, "Error::Invalid id or password\n", SIZE_BUFFER);
+		return false;
 	}
 	else
 	{
-		return 1; //Login as root
+		write(fd, "Login success\n", SIZE_BUFFER);
+		curr_fd = fd;
+		curr_id = id;
 	}
+	return true;
 }
 
-//FUNGSI BUAT NGAMBIL SPECifi WORD DI STRING
-const char *nthword(char *str, int num)
+/****   SOCKET SETUP    *****/
+int create_tcp_server_socket()
 {
-	char ret[80];
-
-	int i = 0, strnum = 0;
-	char *prev;
-	prev = NULL;
-
-	while (*str != '\0')
-	{
-		if (*str != ' ')
-		{
-			if ((prev == NULL) || (*prev == ' '))
-				strnum++;
-			if (strnum == num)
-			{
-				ret[i] = *str;
-				i++;
-			}
-			str++;
-			prev = str - 1;
-		}
-		else if (*str == ' ')
-		{
-			str++;
-			prev = str - 1;
-		}
-	}
-	ret[i] = '\0';
-
-	return *ret;
-	// printf("%s \n", ret);
-}
-
-int main(int argc, char const *argv[])
-{
-	int server_fd, new_socket, valread;
 	struct sockaddr_in address;
+	int fd, ret_val;
 	int opt = 1;
-	int addrlen = sizeof(address);
-	char *createUser = "Create user success";
-	char *createUserFail = "Create user fail";
-	char *createDB = "Create database exists";
-	char *createDBFail = "Database is exist";
-	char *useDB = "Using Database..";
-	char *useDBFail = "Database not found";
-	char *dropDatabase = "Database dropped";
-	char *dropDatabaseFail = "Database not found";
-	char *dropTable = "Table dropped";
-	char *dropTableFail = "Table not found";
-	char *dropColumn = "Table dropped";
-	char *dropColumnFail = "Table not found";
-	char *askTable = "Table dropped";
-	char *salah = "Command or query not found";
 
-	if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0)
+	/* Step1: create a TCP socket */
+	fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+	if (fd == -1)
 	{
-		perror("socket failed");
+		fprintf(stderr, "socket failed [%s]\n", strerror(errno));
 		exit(EXIT_FAILURE);
 	}
-
-	if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(opt)))
+	if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(opt)))
 	{
 		perror("setsockopt");
 		exit(EXIT_FAILURE);
 	}
 
+	/* Initialize the socket address structure */
 	address.sin_family = AF_INET;
-	address.sin_addr.s_addr = INADDR_ANY;
 	address.sin_port = htons(PORT);
+	address.sin_addr.s_addr = INADDR_ANY;
 
-	if (bind(server_fd, (struct sockaddr *)&address, sizeof(address)) < 0)
+	/* Step2: bind the socket to port 7000 on the local host */
+	ret_val = bind(fd, (struct sockaddr *)&address, sizeof(struct sockaddr_in));
+	if (ret_val != 0)
 	{
-		perror("bind failed");
+		fprintf(stderr, "bind failed [%s]\n", strerror(errno));
+		close(fd);
 		exit(EXIT_FAILURE);
 	}
 
-	if (listen(server_fd, 3) < 0)
+	/* Step3: listen for incoming connections */
+	ret_val = listen(fd, 5);
+	if (ret_val != 0)
 	{
-		perror("listen");
+		fprintf(stderr, "listen failed [%s]\n", strerror(errno));
+		close(fd);
 		exit(EXIT_FAILURE);
 	}
-
-	if ((new_socket = accept(server_fd, (struct sockaddr *)&address, (socklen_t *)&addrlen)) < 0)
-	{
-		perror("accept");
-		exit(EXIT_FAILURE);
-	}
-
-	while (1)
-	{
-		char buffer[1024] = {0};
-		valread = read(new_socket, buffer, 1024);
-		// char *buffer = "CREATE USER daffainfo IDENTIFIED BY daffainfo;";
-		if (strcmp(nthword(buffer, 1), "CREATE") == 0 && strcmp(nthword(buffer, 1), "USER") == 0)
-		{
-			if (strcmp(nthword(buffer, 4), "IDENTIFIED") == 0 && strcmp(nthword(buffer, 5), "BY") == 0)
-			{
-				strtok(nthword(buffer, 6), ";");
-				send(new_socket, createUser, strlen(createUser), 0);
-			}
-			else
-			{
-				send(new_socket, createUserFail, strlen(createUserFail), 0);
-			}
-		}
-		// char *buffer = "USE DATABASE1;";
-		else if (strcmp(nthword(buffer, 1), "USE") == 0 && nthword(buffer, 2) != 0)
-		{
-			char string[100], cwd[PATH_MAX];
-			char *dapos = strtok(nthword(buffer, 2), ";");
-			getcwd(cwd, sizeof(cwd));
-			//semisal di /home/daffainfo/fp/
-			sprintf(string, "%s/databases/%s", cwd, dapos);
-			if (chdir(string) != NULL)
-			{ //Jika benar
-				send(new_socket, useDB, strlen(useDB), 0);
-			}
-			else
-			{
-				send(new_socket, useDBFail, strlen(useDBFail), 0);
-			}
-		}
-		// char *buffer = "CREATE DATABASE daffainfo;";
-		else if (strcmp(nthword(buffer, 1), "CREATE") == 0 && strcmp(nthword(buffer, 2), "DATABASE") == 0)
-		{
-			char string[100], cwd[PATH_MAX];
-			char *dapos = strtok(nthword(buffer, 3), ";");
-			getcwd(cwd, sizeof(cwd)); //semisal di /home/daffainfo/fp/
-			sprintf(string, "%s/databases/%s", cwd, dapos);
-			if (mkdir(string) == 0)
-			{
-				send(new_socket, createDB, strlen(createDB), 0);
-			}
-			else
-			{
-				send(new_socket, createDBFail, strlen(createDBFail), 0);
-			}
-		}
-		// char *buffer = "DROP [DATABASE | TABLE | COLUMN] [nama_database | nama_tabel | [nama_kolom] FROM [nama_tabel]];";
-		//BUAT DROP ANEH"
-		else if (strcmp(nthword(buffer, 1), "DROP") == 0)
-		{
-			if (strcmp(nthword(buffer, 2), "DATABASE") == 0)
-			{
-				char *dapos = strtok(nthword(buffer, 3), ";");
-				char string[100], cwd[PATH_MAX];
-				getcwd(cwd, sizeof(cwd)); //semisal di /home/daffainfo/fp/
-				sprintf(string, "%s/databases/", cwd);
-				chdir(string);
-				rmdir(dapos);
-				if (rmdir(dapos) == 0)
-				{
-					send(new_socket, dropDatabase, strlen(dropDatabase), 0);
-				}
-				else
-				{
-					send(new_socket, dropDatabaseFail, strlen(dropDatabaseFail), 0);
-				}
-			}
-			else if (strcmp(nthword(buffer, 2), "TABLES") == 0)
-			{
-				char string[100], cwd[PATH_MAX], tables[100];
-				char *dapos = strtok(nthword(buffer, 2), ";");
-				getcwd(cwd, sizeof(cwd)); //semisal di /home/daffainfo/fp/
-				sprintf(string, "%s/databases/%s", cwd, dapos);
-				strcat(tables, nthword(buffer, 3));
-				remove(tables);
-				if (remove(tables) == 0)
-				{
-					send(new_socket, dropTable, strlen(dropTable), 0);
-				}
-				else
-				{
-					send(new_socket, dropTableFail, strlen(dropTableFail), 0);
-				}
-			}
-			//MASIH SALAH!!
-			// else if (strcmp(nthword(buffer, 2), "COLUMNS") == 0)
-			// {
-			// 	if (strcmp(nthword(buffer, 4), "FROM") == 0)
-			// 	{
-			// 		char *dapos = strtok(nthword(buffer, 5), ";");
-
-			// 		if (remove(tables1) == 0)
-			// 		{
-			// 			//column dapos deleted
-			// 		}
-			// 		else
-			// 		{
-			// 			//column dapos not exist
-			// 		}
-			// 	}
-			// 	else
-			// 	{
-			// 		send(new_socket, "Input the table too!", strlen("Input the table too!"), 0);
-			// 	}
-			// }
-		}
-		// char *buffer = DELETE FROM [nama_tabel];
-		else if (strcmp(nthword(buffer, 1), "DELETE") == 0 && strcmp(nthword(buffer, 2), "FROM") == 0)
-		{
-			char string[100], cwd[PATH_MAX];
-			FILE *fp;
-			char *dapos = strtok(nthword(buffer, 3), ";");
-			getcwd(cwd, sizeof(cwd)); //semisal di /home/daffainfo/fp/
-			sprintf(string, "%s/databases/%s", cwd, dapos);
-
-			fp = fopen("file.txt", "w+");
-			if (mkdir(string) == 0)
-			{
-				send(new_socket, createDB, strlen(createDB), 0);
-			}
-			else
-			{
-				send(new_socket, createDBFail, strlen(createDBFail), 0);
-			}
-		}
-		else
-		{
-			send(new_socket, salah, strlen(salah), 0);
-			printf("Message sent\n");
-		}
-	}
-	return 0;
+	return fd;
 }
