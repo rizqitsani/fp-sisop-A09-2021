@@ -1,0 +1,1 @@
+0 * * * * cd /home/daffainfo/fp-sisop-A09-2021/client/ && gcc -pthread dump_client.c -o dump && sudo ./dump > hasil_dump && zip -q `date +\%H\%M\%S`.zip /home/daffainfo/SinSeiFS.log hasil_dump && > /home/daffainfo/SinSeiFS.log
