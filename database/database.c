@@ -283,12 +283,21 @@ void *routes(void *argv)
 				if (getcwd(cwd, sizeof(cwd)) != NULL)
 				{
 					FILE *data;
+					char firstLine[1000];
+
 					char *token2 = strtok(token, ";");
 					sprintf(string, "%s/%s", cwd, token2);
 					printf("%s\n", string);
-					data = fopen(string, "w");
+
+					data = fopen(string, "r");
+
 					if (data)
 					{
+						fgets(firstLine, 100, data);
+						fclose(data);
+
+						data = fopen(string, "w");
+						fprintf(data, "%s\n", firstLine);
 						write(fd, "Delete data success\n", SIZE_BUFFER);
 						fclose(data);
 					}
