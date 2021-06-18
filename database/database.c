@@ -17,8 +17,8 @@ int curr_fd = -1, curr_id = -1;
 const int SIZE_BUFFER = sizeof(char) * 1000;
 
 void *routes(void *argv);
+void logging(char *string);
 bool login(int fd, char *username, char *password);
-bool isFileExists(char *filename);
 
 int main()
 {
@@ -82,6 +82,7 @@ void *routes(void *argv)
 		puts(query);
 
 		strcpy(buf, query);
+		logging(buf);
 		char *cmd = strtok(buf, " ");
 
 		if (strcmp(cmd, "LOGIN") == 0)
@@ -336,4 +337,21 @@ bool isFileExists(char *filename)
 {
 	struct stat buffer;
 	return (stat(filename, &buffer) == 0);
+}
+
+void logging(char *str)
+{
+	FILE *fp = fopen("SinSeiFS.log", "a+");
+
+	time_t rawtime;
+	struct tm *info;
+	char buffer[1000];
+
+	time(&rawtime);
+
+	info = localtime(&rawtime);
+
+	strftime(buffer, sizeof(buffer), "%y-%m-%d %X", &info);
+	fprintf(fp, "%s:root:%s\n", buffer, str);
+	fclose(fp);
 }
