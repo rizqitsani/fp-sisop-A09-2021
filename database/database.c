@@ -101,7 +101,7 @@ void *routes(void *argv)
 
 			if (strcmp(cmd, "DATABASE") == 0)
 			{
-				char string[5000], cwd[PATH_MAX], tempDir[PATH_MAX], *checkDir;
+				char dbDir[5000], rootDir[5000], cwd[PATH_MAX], tempDir[PATH_MAX];
 				char *token = strtok(NULL, " ");
 
 				getcwd(cwd, sizeof(cwd));
@@ -110,17 +110,25 @@ void *routes(void *argv)
 				printf("tempdir: %s\n", tempDir);
 
 				// Kembali ke parent kalau lagi use db
-				checkDir = strstr(cwd, "databases/");
-				if (checkDir != NULL)
+				if (strstr(cwd, "databases/") != NULL)
 				{
 					chdir("../../");
 				}
 
 				if (getcwd(cwd, sizeof(cwd)) != NULL)
 				{
-					char *token2 = strtok(token, ";");
-					sprintf(string, "%s/databases/%s", cwd, token2);
-					int check = mkdir(string, 0777);
+					char *dbName = strtok(token, ";");
+
+					sprintf(dbDir, "%s/databases/%s", cwd, dbName);
+					sprintf(rootDir, "%s/databases", cwd);
+
+					DIR *dir = opendir(rootDir);
+					if (ENOENT == errno)
+					{
+						mkdir(rootDir, 0777);
+					}
+
+					int check = mkdir(dbDir, 0777);
 					if (!check)
 					{
 						write(fd, "Create DB Success\n", SIZE_BUFFER);
@@ -237,11 +245,26 @@ void *routes(void *argv)
 
 				if (getcwd(cwd, sizeof(cwd)) != NULL)
 				{
+					DIR *dp;
+					struct dirent *ep;
+					char path[100], filedir[5000];
 					char *token2 = strtok(token, ";");
 					sprintf(string, "%s/databases/%s", cwd, token2);
+					dp = opendir(string);
+					if (dp != NULL)
+					{
+						while ((ep = readdir(dp)))
+						{
+							if (ep->d_type == DT_REG)
+							{
+								puts(ep->d_name);
+								sprintf(filedir, "%s/%s", string, ep->d_name);
+								remove(filedir);
+							}
+						}
 
-					deleteAllTable(string);
-
+						(void)closedir(dp);
+					}
 					int check = rmdir(string);
 					if (!check)
 					{
@@ -255,7 +278,6 @@ void *routes(void *argv)
 						write(fd, "Drop database failed\n", SIZE_BUFFER);
 					}
 				}
-				//create db ngapain
 			}
 			else if (strcmp(cmd, "TABLE") == 0)
 			{
