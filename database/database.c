@@ -11,6 +11,7 @@
 #include <sys/stat.h>
 #include <netinet/in.h>
 #include <limits.h>
+#include <dirent.h>
 #define PORT 8080
 
 int curr_fd = -1, curr_id = -1;
@@ -20,6 +21,7 @@ void *routes(void *argv);
 void logging(char *string);
 bool login(int fd, char *username, char *password);
 bool isFileExists(char *filename);
+void deleteAllTable(char *basePath);
 
 int main()
 {
@@ -149,9 +151,17 @@ void *routes(void *argv)
 
 					printf("dir: %s\n", fileDir);
 
-					if (isFileExists(fileDir))
+					if (strstr(cwd, "databases/") == NULL)
+					{
+						write(fd, "Anda belum menggunakan database!\n", SIZE_BUFFER);
+					}
+					else if (isFileExists(fileDir))
 					{
 						write(fd, "Tabel sudah dibuat sebelumnya!\n", SIZE_BUFFER);
+					}
+					else if (columnDetail == NULL)
+					{
+						write(fd, "Invalid syntax!\n", SIZE_BUFFER);
 					}
 					else
 					{
@@ -229,6 +239,9 @@ void *routes(void *argv)
 				{
 					char *token2 = strtok(token, ";");
 					sprintf(string, "%s/databases/%s", cwd, token2);
+
+					deleteAllTable(string);
+
 					int check = rmdir(string);
 					if (!check)
 					{
@@ -254,14 +267,23 @@ void *routes(void *argv)
 					char *token2 = strtok(token, ";");
 					sprintf(string, "%s/%s", cwd, token2);
 					printf("%s\n", string);
-					int check = remove(string);
-					if (!check)
+
+					if (strstr(cwd, "databases/") == NULL)
 					{
-						write(fd, "Remove table success\n", SIZE_BUFFER);
+						write(fd, "Anda belum menggunakan database!\n", SIZE_BUFFER);
 					}
 					else
 					{
-						write(fd, "Remove table failed\n", SIZE_BUFFER);
+						int check = remove(string);
+
+						if (!check)
+						{
+							write(fd, "Remove table success\n", SIZE_BUFFER);
+						}
+						else
+						{
+							write(fd, "Remove table failed\n", SIZE_BUFFER);
+						}
 					}
 				}
 				//drop db ngapain
@@ -289,21 +311,28 @@ void *routes(void *argv)
 					sprintf(string, "%s/%s", cwd, token2);
 					printf("%s\n", string);
 
-					data = fopen(string, "r");
-
-					if (data)
+					if (strstr(cwd, "databases/") == NULL)
 					{
-						fgets(firstLine, 100, data);
-						fclose(data);
-
-						data = fopen(string, "w");
-						fprintf(data, "%s\n", firstLine);
-						write(fd, "Delete data success\n", SIZE_BUFFER);
-						fclose(data);
+						write(fd, "Anda belum menggunakan database!\n", SIZE_BUFFER);
 					}
 					else
 					{
-						write(fd, "Delete data failed\n", SIZE_BUFFER);
+						data = fopen(string, "r");
+
+						if (data)
+						{
+							fgets(firstLine, 100, data);
+							fclose(data);
+
+							data = fopen(string, "w");
+							fprintf(data, "%s\n", firstLine);
+							write(fd, "Delete data success\n", SIZE_BUFFER);
+							fclose(data);
+						}
+						else
+						{
+							write(fd, "Delete data failed\n", SIZE_BUFFER);
+						}
 					}
 				}
 			}
@@ -329,7 +358,15 @@ void *routes(void *argv)
 
 					printf("dir: %s\n", fileDir);
 
-					if (isFileExists(fileDir))
+					if (strstr(cwd, "databases/") == NULL)
+					{
+						write(fd, "Anda belum menggunakan database!\n", SIZE_BUFFER);
+					}
+					else if (value == NULL)
+					{
+						write(fd, "Invalid syntax!\n", SIZE_BUFFER);
+					}
+					else if (isFileExists(fileDir))
 					{
 						data = fopen(fileDir, "a");
 
@@ -400,4 +437,31 @@ void logging(char *str)
 	strftime(buffer, sizeof(buffer), "%Y-%m-%d %X", info);
 	fprintf(fp, "%s:root:%s\n", buffer, str);
 	fclose(fp);
+}
+
+void deleteAllTable(char *basePath)
+{
+	char path[1000];
+	struct dirent *dp;
+	DIR *dir = opendir(basePath);
+
+	if (!dir)
+		return;
+
+	while ((dp = readdir(dir)) != NULL)
+	{
+		if (strcmp(dp->d_name, ".") != 0 && strcmp(dp->d_name, "..") != 0)
+		{
+			remove(dp->d_name);
+
+			// Construct new path from our base path
+			strcpy(path, basePath);
+			strcat(path, "/");
+			strcat(path, dp->d_name);
+
+			deleteAllTable(path);
+		}
+	}
+
+	closedir(dir);
 }
