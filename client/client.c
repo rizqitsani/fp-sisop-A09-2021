@@ -135,10 +135,10 @@ int create_tcp_client_socket()
 	address.sin_addr = *((struct in_addr *)local_host->h_addr);
 
 	/* Step2: connect to the TCP server socket */
-	ret_val = connect(fd, (struct sockaddr *)&address, sizeof(struct sockaddr_in));
+	ret_val = connect(server_fd, (struct sockaddr *)&address, sizeof(struct sockaddr_in));
 	if (ret_val == -1)
 	{
 		exit(EXIT_FAILURE);
 	}
-	return fd;
+	return server_fd;
 }
