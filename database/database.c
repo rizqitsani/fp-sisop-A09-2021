@@ -21,7 +21,6 @@ void *routes(void *argv);
 void logging(char *string);
 bool login(int fd, char *username, char *password);
 bool isFileExists(char *filename);
-void deleteAllTable(char *basePath);
 
 char workingDir[PATH_MAX];
 
@@ -489,31 +488,4 @@ void logging(char *str)
 	strftime(buffer, sizeof(buffer), "%Y-%m-%d %X", info);
 	fprintf(fp, "%s:root:%s\n", buffer, str);
 	fclose(fp);
-}
-
-void deleteAllTable(char *basePath)
-{
-	char path[1000];
-	struct dirent *dp;
-	DIR *dir = opendir(basePath);
-
-	if (!dir)
-		return;
-
-	while ((dp = readdir(dir)) != NULL)
-	{
-		if (strcmp(dp->d_name, ".") != 0 && strcmp(dp->d_name, "..") != 0)
-		{
-			remove(dp->d_name);
-
-			// Construct new path from our base path
-			strcpy(path, basePath);
-			strcat(path, "/");
-			strcat(path, dp->d_name);
-
-			deleteAllTable(path);
-		}
-	}
-
-	closedir(dir);
 }
